@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 3D 创作 - 腾讯混元生3D</title>
+<link rel="icon" type="image/png" href="image/image.png">
+
+<style>
+/*========== 基础 & 主题 ==========*/
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html,body{ height:auto; min-height:100vh; }
+body{
+  font-family: 'Microsoft YaHei','微软雅黑','STKaiti',serif;
+  background: linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+  color: #e0f7fa; padding: 60px 20px 40px; position: relative;
+}
+body::before{ /* 装饰光斑 */
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(circle at 20% 80%,rgba(255,255,255,.08) 0%,transparent 50%),
+              radial-gradient(circle at 80% 20%,rgba(255,255,255,.08) 0%,transparent 50%);
+  pointer-events: none;
+}
+.container{ max-width: 1000px; margin: 0 auto; text-align: center; position: relative; }
+
+/*========== 标题 ==========*/
+h1{ font-size: clamp(32px,5vw,48px); margin-bottom: 10px;
+    background: linear-gradient(45deg,#4fc3f7,#29b6f6,#03a9f4);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 4px; }
+.subtitle{ font-size: clamp(14px,2.5vw,18px); margin-bottom: 40px; letter-spacing: 2px; color: #bbdefb; }
+
+/*========== 输入卡片 ==========*/
+.input-section{ background: rgba(255,255,255,.08); border-radius: 15px; padding: 30px;
+                border: 1px solid rgba(255,255,255,.1); backdrop-filter: blur(10px); margin-bottom: 30px; }
+.input-section h3{ color: #4fc3f7; margin-bottom: 20px; font-size: 24px; }
+
+textarea{ width: 100%; padding: 15px; border: 2px solid rgba(79,195,247,.3); border-radius: 10px;
+          background: rgba(0,0,0,.2); color: #e0f7fa; font-size: 16px; resize: vertical; min-height: 120px; font-family: inherit; }
+textarea:focus{ outline: none; border-color: #4fc3f7; box-shadow: 0 0 15px rgba(79,195,247,.3); }
+
+/*========== 上传 & 预览 ==========*/
+.file-upload{ margin: 20px 0; text-align: left; }
+.file-upload label{ display: block; margin-bottom: 10px; color: #bbdefb; font-size: 16px; }
+input[type=file]{
+  display: block; width: 100%; padding: 10px; border: 2px dashed rgba(79,195,247,.5);
+  border-radius: 8px; background: rgba(0,0,0,.2); color: #e0f7fa; cursor: pointer;
+}
+input[type=file]:hover:not(:disabled){ border-color: #4fc3f7; }
+input[type=file]:disabled{ border-color: #666; cursor: not-allowed; }
+
+.preview-img{ max-width: 300px; max-height: 200px; border-radius: 10px;
+              margin: 15px auto; box-shadow: 0 4px 15px rgba(0,0,0,.3); display: block; }
+
+/*========== 按钮 ==========*/
+.submit-btn{ width: 100%; padding: 16px; border: none; border-radius: 10px;
+             background: linear-gradient(45deg,#2196f3,#21cbf3); color: #042b3a;
+             font-size: 18px; font-weight: bold; cursor: pointer; transition: all .3s ease; margin-top: 20px; }
+.submit-btn:hover:not(:disabled){ transform: translateY(-3px);
+                                  box-shadow: 0 6px 20px rgba(33,150,243,.5); }
+.submit-btn:disabled{ background: #666; cursor: not-allowed; }
+
+/*========== 状态 & 结果 ==========*/
+.status-section{ background: rgba(255,255,255,.05); border-radius: 15px;
+                 padding: 25px; border: 1px solid rgba(255,255,255,.1); margin-top: 20px; }
+.status-section h3{ color: #4fc3f7; margin-bottom: 20px; }
+.status-badge{ display: inline-block; padding: 8px 20px; border-radius: 25px;
+               font-weight: bold; color: white; margin: 10px 0; }
+.status-badge.WAIT{ background: #faad14; }
+.status-badge.RUN{ background: #2196f3; }
+.status-badge.DONE{ background: #52c41a; }
+.status-badge.FAIL{ background: #ff4d4f; }
+.progress-bar{ width: 100%; height: 10px; background: rgba(255,255,255,.1);
+               border-radius: 5px; overflow: hidden; margin: 15px 0; }
+.progress{ height: 100%; background: linear-gradient(90deg,#2196f3,#21cbf3);
+           transition: width .3s ease; }
+.error-box{ background: rgba(255,77,79,.1); border: 1px solid #ff4d4f;
+            color: #ff4d4f; padding: 15px; border-radius: 8px; margin: 15px 0; }
+
+.results{ margin-top: 25px; }
+.results h3{ color: #52c41a; margin-bottom: 20px; }
+.file-card{ background: rgba(255,255,255,.05); border: 1px solid rgba(82,196,26,.3);
+            border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+.result-preview{ max-width: 100%; max-height: 300px; border-radius: 8px;
+                 margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,.2); }
+.file-info{ display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+.file-type{ font-size: 18px; font-weight: bold; color: #52c41a; }
+.download-link{ padding: 10px 20px; background: linear-gradient(45deg,#52c41a,#73d13d);
+                color: #042b3a; text-decoration: none; border-radius: 6px; font-weight: bold;
+                transition: all .3s; }
+.download-link:hover{ transform: translateY(-2px); box-shadow: 0 4px 12px rgba(82,196,26,.4); }
+
+/*========== 辅助 ==========*/
+code{ background: rgba(0,0,0,.3); padding: 4px 8px; border-radius: 4px; font-size: 12px; color: #4fc3f7; }
+.btn{ display: inline-block; background: linear-gradient(45deg,#2196f3,#21cbf3);
+      color: #042b3a; padding: 12px 30px; border-radius: 25px; text-decoration: none;
+      font-weight: bold; transition: all .3s ease; box-shadow: 0 4px 15px rgba(33,150,243,.3); }
+.btn:hover{ transform: translateY(-2px); box-shadow: 0 6px 20px rgba(33,150,243,.4); }
+.warning-box{ background: rgba(255,152,0,.1); border: 1px solid #ff9800;
+              color: #ff9800; padding: 12px; border-radius: 8px; margin: 10px 0; font-size: 14px; }
+.file-validation-error{ background: rgba(255,77,79,.1); border: 1px solid #ff4d4f;
+                        color: #ff4d4f; padding: 10px; border-radius: 6px; margin: 10px 0; font-size: 14px; }
+</style>
+
+</head>
+
+<body>
+<script type="text/javascript" src="scaler/js/canvas-nest.min.js"></script>
+<div class="container" id="app">
+  <h1>AI 3D 创作</h1>
+  <p class="subtitle">腾讯混元生3D - 文字与图片生成3D模型</p>
+
+  <!-- 输入区 -->
+  <div class="input-section">
+    <h3>🎨 创作设置</h3>
+
+    <!-- 文字描述 -->
+    <textarea v-model="prompt" rows="4"
+              placeholder="输入描述，例如：一只可爱的卡通猫，全身，3D风格，色彩鲜艳（可选）"></textarea>
+
+    <!-- 纯图片提示 -->
+    <div v-if="!prompt.trim() && imagePreview" class="warning-box">
+      ⚠️ 未输入文字描述，仅使用图片生成（建议补充描述以提升效果）
+    </div>
+
+    <!-- 上传 & 预览 -->
+    <div class="file-upload">
+      <label for="imageInput">📷 或上传图片（可选，最大 5 MB）：</label>
+      <input type="file" id="imageInput"
+             accept="image/jpeg,image/png,image/webp"
+             :disabled="isProcessing"
+             @change="handleImage">
+      <!-- 错误提示 -->
+      <div v-if="imageError" class="file-validation-error">❌ {{ imageError }}</div>
+      <!-- 缩略图 -->
+      <img v-if="imagePreview" :src="imagePreview" class="preview-img">
+      <!-- 清空 -->
+      <button v-if="imagePreview" @click="clearImage" class="btn"
+              style="margin-top:10px;background:#ff9800;color:#042b3a;">
+        清空图片
+      </button>
+    </div>
+
+    <!-- 提交 -->
+    <button @click="submitJob" class="submit-btn"
+            :disabled="!canSubmit || isProcessing">
+      {{ isProcessing ? '⏳ 生成中...' : '🚀 生成3D模型' }}
+    </button>
+  </div>
+
+  <!-- 状态 / 进度 -->
+  <div v-if="jobId" class="status-section">
+    <h3>📊 任务状态</h3>
+    <p>任务ID: <code>{{ jobId }}</code></p>
+    <div class="status-badge" :class="status">{{ statusText }}</div>
+
+    <div v-if="status==='WAIT' || status==='RUN'" class="progress-bar">
+      <div class="progress" :style="{width: progress+'%'}"></div>
+    </div>
+
+    <div v-if="status==='FAIL'" class="error-box">
+      <strong>生成失败：</strong>{{ errorMessage }}
+    </div>
+  </div>
+
+  <!-- 结果 -->
+  <div v-if="status==='DONE'" class="results">
+    <h3>🎉 模型生成成功！</h3>
+    <div v-for="f in resultFiles" :key="f.url" class="file-card">
+      <img :src="f.previewUrl" class="result-preview">
+      <div class="file-info">
+        <span class="file-type">{{ f.type }} 格式</span>
+        <a :href="f.url" target="_blank" class="download-link">⬇️ 下载模型</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 返回 -->
+  <div style="margin-top: 30px;">
+    <a href="index.html" class="btn">返回首页</a>
+  </div>
+</div>
+
+<!-- Vue 3 + Axios CDN -->
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script>
+const { createApp, ref, computed } = Vue;
+
+createApp({
+  setup(){
+    /*========== 基础数据 ==========*/
+    const prompt        = ref('');
+    const imageFile     = ref(null);          // File 对象
+    const imagePreview  = ref('');            // DataURL 供 img 显示
+    const imageError    = ref('');            // 上传错误提示
+    const jobId         = ref('');
+    const status        = ref('');            // WAIT / RUN / DONE / FAIL
+    const errorMessage  = ref('');
+    const resultFiles   = ref([]);
+    const isProcessing  = ref(false);
+    const progress      = ref(0);
+
+    /*========== 计算属性 ==========*/
+    const canSubmit = computed(()=> prompt.value.trim() || imageFile.value);
+    const statusText= computed(()=>{
+      const map={ WAIT:'⏳ 等待中',RUN:'🔄 生成中',DONE:'✅ 完成',FAIL:'❌ 失败' };
+      return map[status.value]||'未知';
+    });
+
+    /*========== 上传 & 预览 ==========*/
+    const MAX_SIZE = 5*1024*1024, MAX_DIM=2048, ALLOW=['image/jpeg','image/png','image/webp'];
+
+    function clearImage(){
+      imageFile.value=null; imagePreview.value=''; imageError.value='';
+      document.getElementById('imageInput').value='';
+    }
+    function handleImage(e){
+      const file=e.target.files[0];
+      if(!file){clearImage();return;}
+      // 防空
+      if(!ALLOW.includes(file.type)){imageError.value='仅支持 JPG、PNG、WebP 格式';e.target.value='';return;}
+      if(file.size>MAX_SIZE){imageError.value='图片大小不能超过 5 MB';e.target.value='';return;}
+      const img=new Image();
+      img.onload=()=>{
+        if(img.width>MAX_DIM||img.height>MAX_DIM){imageError.value=`图片尺寸过大：${img.width}×${img.height}（最大 ${MAX_DIM}px）`;e.target.value='';return;}
+        imageFile.value=file;
+        imagePreview.value=img.src;          // 展示缩略图
+        imageError.value='';
+      };
+      img.onerror=()=>{imageError.value='图片文件损坏或无法读取';e.target.value='';};
+      const reader=new FileReader();
+      reader.onload=ev=>img.src=ev.target.result;
+      reader.readAsDataURL(file);
+    }
+
+    /*========== 提交任务 ==========*/
+    async function submitJob(){
+      if(!canSubmit.value){alert('请输入描述或上传图片');return;}
+      isProcessing.value=true; progress.value=5;
+
+      let imageBase64='';
+      if(imageFile.value){
+        imageBase64=await new Promise(r=>{
+          const rd=new FileReader();
+          rd.onload=e=>r(e.target.result);
+          rd.readAsDataURL(imageFile.value);
+        });
+      }
+      try{
+        const {data}=await axios.post('/api/hunyuan3d/submit',{prompt:prompt.value,image:imageBase64});
+        if(data.success){
+          jobId.value=data.jobId; status.value='WAIT';
+          if(data.inputType==='image_only')progress.value=15;
+          queryResult();
+        }else{
+          alert('提交失败：'+(data.error||'未知错误')); isProcessing.value=false;
+        }
+      }catch(e){
+        const msg=e.response?.data?.error||e.message, code=e.response?.data?.code||'UNKNOWN';
+        alert(`提交失败 [${code}]：${msg}\n建议：${e.response?.data?.suggestion||'请检查网络'}`);
+        isProcessing.value=false;
+      }
+    }
+
+    /*========== 轮询结果 ==========*/
+    function queryResult(){
+      const t=setInterval(async()=>{
+        try{
+          const {data}=await axios.get(`/api/hunyuan3d/query/${jobId.value}`);
+          if(!data.success){status.value='FAIL'; errorMessage.value=data.error; isProcessing.value=false; clearInterval(t); return;}
+          status.value=data.status;
+          if(data.status==='DONE'){clearInterval(t); progress.value=100; resultFiles.value=data.resultFiles; isProcessing.value=false;}
+          else if(data.status==='FAIL'){clearInterval(t); errorMessage.value=data.errorMessage; isProcessing.value=false;}
+          else{progress.value=Math.min(progress.value+12,85);}
+        }catch(e){console.error(e);}
+      },3500);
+    }
+
+    return{ prompt,imageFile,imagePreview,imageError,jobId,status,errorMessage,resultFiles,isProcessing,progress,
+            canSubmit,statusText,handleImage,clearImage,submitJob };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>图片取色器</title>
+<link rel="icon" type="image/png" href="image/image.png">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  body{
+    margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    display:flex;flex-direction:column;align-items:center;padding:20px;color:#e0f7fa;
+  }
+  #wrapper{background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));border-radius:8px;
+    box-shadow:0 6px 24px rgba(0,0,0,.6);width:100%;max-width:1200px;display:flex;gap:20px;padding:20px;flex-wrap:wrap}
+  #left{flex:1;min-width:320px}
+  #canvas-wrapper{position:relative;display:inline-block}
+  #canvas{cursor:crosshair;max-width:100%;height:auto;display:block;border-radius:4px;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+  /* ==================== ✅ 方案1：完全移除延迟 ==================== */
+  #magnifier{
+    position:absolute;
+    border:2px solid #29b6f6;
+    border-radius:50%;
+    pointer-events:none;
+    width:120px;
+    height:120px;
+    display:none;
+    background-repeat:no-repeat;
+    transition:none;  /* ✅ 移除所有过渡动画 */
+    box-shadow:0 8px 20px rgba(0,0,0,.6);
+    background-color:rgba(0,0,0,0.15);
+  }
+  /* ============================================================ */
+  .locked{border-color:#ff0033;box-shadow:0 0 0 4px rgba(255,0,51,.15);}
+  #right{flex:0 0 320px}
+  .block{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);border-radius:6px;padding:12px;margin-bottom:12px}
+  .color-box{width:100%;height:40px;border-radius:4px;margin:6px 0;display:flex;align-items:center;justify-content:center;color:#000;font-weight:600}
+  button{padding:6px 12px;margin-top:6px;border:none;border-radius:4px;background:#29b6f6;color:#042b3a;cursor:pointer}
+  button:hover{background:#1ea0d1}
+  input[type=file]{margin-bottom:10px}
+  .hist-item{display:flex;align-items:center;justify-content:space-between;margin:4px 0}
+  .hist-color{width:24px;height:24px;border-radius:4px;border:1px solid #111}
+  h1{color:#bdefff;margin-bottom:12px}
+  input[type="text"], input[readonly]{background:rgba(255,255,255,0.03);color:#e0f7fa;border:1px solid rgba(255,255,255,0.04);padding:4px 6px;border-radius:4px}
+  #top-bar{position:fixed;top:0;left:0;width:100vw;height:48px;z-index:9999;display:flex;align-items:center;justify-content:flex-end;background:rgba(25,40,50,0.85);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,0.1);transition:opacity 0.4s;opacity:0;pointer-events:none}
+  #goto-photo-btn{margin-right:32px;color:#bceaff;text-decoration:none;font-size:16px;font-weight:600;padding:10px 22px;border-radius:24px;background:linear-gradient(90deg,#2196f3,#21cbf3);box-shadow:0 4px 16px rgba(33,150,243,0.18);transition:background 0.3s;pointer-events:auto}
+  #goto-photo-btn:hover{background:linear-gradient(90deg,#21cbf3,#2196f3)}
+  /* 折叠区样式 */
+  .fold-header{
+    display:flex;align-items:center;justify-content:space-between;
+    cursor:pointer;padding:8px 12px;border-radius:4px;
+    background:rgba(255,255,255,0.02);transition:background 0.3s;
+  }
+  .fold-header:hover{background:rgba(255,255,255,0.03)}
+  .fold-arrow{
+    display:inline-block;width:16px;height:16px;
+    transition:transform 0.3s;
+  }
+  .folded .fold-arrow{
+    transform:rotate(-90deg);
+  }
+  .fold-content{
+    max-height:300px;overflow:hidden;
+    transition:max-height 0.3s ease-out;
+  }
+  .folded .fold-content{
+    max-height:0;
+  }
+  .fold-header {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.fold-arrow {
+  font-size: 18px;
+  margin-left: 8px;
+  transition: transform 0.2s;
+}
+.fold-collapsed {
+  display: none;
+}
+.fold-header.collapsed .fold-arrow {
+  transform: rotate(-90deg);
+}
+</style>
+<base target="_blank">
+</head>
+<body>
+
+<h1>图片取色器</h1>
+
+<script type="text/javascript" src="scaler/js/canvas-nest.min.js"></script>
+
+<div id="top-bar">
+    <a href="index.html" id="goto-photo-btn">首页</a>
+    <a href="3D_looker.html" id="goto-photo-btn">3D模型取色器</a>
+    <a href="hunyuan3d.html"id="goto-photo-btn">AI创作</a>
+</div>
+
+<div id="wrapper">
+  <div id="left">
+    <input type="file" id="file" accept="image/*">
+    <div id="canvas-wrapper">
+      <canvas id="canvas"></canvas>
+      <div id="magnifier"></div>
+    </div>
+  </div>
+
+  <div id="right">
+    <div class="block">
+      <h3>当前像素</h3>
+      <div id="cur-color" class="color-box"></div>
+      <div>HEX <input id="hex" readonly size="8"></div>
+      <div>RGB <input id="rgb" readonly size="14"></div>
+      <div>HSL <input id="hsl" readonly size="14"></div>
+      <div style="background-color: #044f604a;border-radius: 8px;padding: 10px;margin-top: 10px;">
+        <button id="predict-cur-btn" style="margin-top:8px;">推演颜料比例</button>
+        <div id="predict-cur-result" style="margin-top:8px;font-size:14px;color:#ffd700"></div>
+        <p style="color: rgb(255, 0, 0);">数据为参考值，实际调配请以实验为准!!!</p>
+      </div>
+      
+    </div>
+
+    <div class="block">
+      <h3>区域平均色（30×30 像素）</h3>
+      <div id="avg-color" class="color-box">#000000</div>
+        <div style="background-color: #044f604a;border-radius: 8px;padding: 10px;margin-top: 10px;">
+          <button id="predict-avg-btn" style="margin-top:8px;">推演颜料比例</button>
+          <div id="predict-avg-result" style="margin-top:8px;font-size:14px;color:#ffd700"></div>
+          <p style="color: rgb(255, 0, 0);">数据为参考值，实际调配请以实验为准!!!</p>
+        </div>
+    </div>
+
+    <div class="block">
+      <h3>历史记录（点击恢复）</h3>
+      <div id="history"></div>
+    </div>
+
+    <div class="block">
+      <div class="fold-header"onclick="toggleFold('tools-fold')">
+        <h3 style="display:inline">更多工具</h3>
+        <span class="fold-arrow" id="tools-arrow">▼</span>
+      </div>
+      <div id="tools-fold" class="fold-content">
+        <!-- 自动主色调（Top-5）折叠区 -->
+      <div class="block">
+        <div class="fold-header" onclick="toggleFold('palette-fold')">
+          <h3 style="display:inline">自动主色调（Top-5）</h3>
+          <span class="fold-arrow" id="palette-arrow">▼</span>
+        </div>
+        <div id="palette-fold" class="fold-content">
+          <div id="palette"></div>
+          <button id="btn-extract">重新提取</button>
+        </div>
+      </div>
+
+      <!-- WCAG 对比度检测折叠区 -->
+      <div class="block">
+        <div class="fold-header" onclick="toggleFold('wcag-fold')">
+          <h3 style="display:inline">WCAG 对比度检测</h3>
+          <span class="fold-arrow" id="wcag-arrow">▼</span>
+        </div>
+        <div id="wcag-fold" class="fold-content">
+          <div>前景 <input id="fg" value="#ffffff" size="8"></div>
+          <div>背景 <input id="bg" value="#000000" size="8"></div>
+          <div>对比度 <b id="cr">—</b> （<span id="cr-level">—</span>）</div>
+        </div>
+      </div>
+      </div>
+  </div>
+  </div>
+</div>
+
+<script>
+/* ====== 工具函数 ====== */
+const $ = q => document.querySelector(q);
+const rgbToHex = (r,g,b) => '#' + [r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('');
+const hexToRgb = hex => {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return m ? [parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)] : [0,0,0];
+};
+const rgbToHsl = (r,g,b) => {
+  r/=255;g/=255;b/=255;
+  const max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min;
+  const l=(max+min)/2;
+  if(d===0) return [0,0,l];
+  const s = l > 0.5 ? d/(2-max-min) : d/(max+min);
+  const h = (max===r?(g-b)/d+(g<b?6:0):max===g?(b-r)/d+2:(r-g)/d+4)*60;
+  return [Math.round(h),Math.round(s*100),Math.round(l*100)];
+};
+const getLuminance = (r,g,b) => {
+  const a = [r,g,b].map(v => {
+    v /= 255;
+    return v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055,2.4);
+  });
+  return 0.2126*a[0] + 0.7152*a[1] + 0.0722*a[2];
+};
+const getContrast = (rgb1,rgb2) => {
+  const l1 = getLuminance(...rgb1)+0.05, l2 = getLuminance(...rgb2)+0.05;
+  return (Math.max(l1,l2)/Math.min(l1,l2)).toFixed(2);
+};
+
+/* ====== 画布与图片 ====== */
+const canvas = $('#canvas'), ctx = canvas.getContext('2d');
+const magnifier = $('#magnifier');
+let img = new Image();
+let scale = 1;
+
+/* ====== 全局状态 ====== */
+let locked = false;
+let lockedColor = null;
+const magSize = 120;
+
+/* 上传 */
+$('#file').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if(!f) return;
+  const url = URL.createObjectURL(f);
+  img.onload = () => {
+    const maxW = 800;
+    scale = Math.min(1, maxW / img.width);
+    canvas.width = img.width * scale;
+    canvas.height = img.height * scale;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    magnifier.style.backgroundImage = `url(${url})`;
+    magnifier.style.backgroundSize = `${img.width * 8}px ${img.height * 8}px`;
+    magnifier.style.display = 'block';
+    extractPalette();
+  };
+  img.src = url;
+});
+
+/* ====== 鼠标移动：立即跟随 ====== */
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left, y = e.clientY - rect.top;
+
+  /* 立即更新位置（无延迟） */
+  magnifier.style.left = (x - magSize/2) + 'px';
+  magnifier.style.top = (y - magSize/2) + 'px';
+
+  if(!locked) updateColorAt(x,y);
+});
+
+/* ====== 单击：锁定/解锁 ====== */
+canvas.addEventListener('click', e => {
+  locked = !locked;
+  magnifier.classList.toggle('locked', locked);
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left, y = e.clientY - rect.top;
+  updateColorAt(x,y);
+  canvas.style.cursor = locked ? 'default' : 'crosshair';
+});
+
+/* ====== 抽离：在 (x,y) 处采样 ====== */
+function updateColorAt(x,y){
+  try{
+    const px = Math.floor(x), py = Math.floor(y);
+    const d1 = ctx.getImageData(px,py,1,1).data;
+    const r = d1[0], g = d1[1], b = d1[2];
+    const hex = rgbToHex(r,g,b);
+    $('#cur-color').style.background = hex;
+    $('#hex').value = hex.toUpperCase();
+    $('#rgb').value = `rgb(${r},${g},${b})`;
+    const [h,s,l] = rgbToHsl(r,g,b);
+    $('#hsl').value = `hsl(${h},${s}%,${l}%)`;
+    addHistory(hex);
+
+    /* 区域平均色 */
+    const region = 15;
+    let R=0,G=0,B=0,n=0;
+    for(let ry=-region;ry<=region;ry++){
+      for(let rx=-region;rx<=region;rx++){
+        const cx = px+rx, cy = py+ry;
+        if(cx<0||cy<0||cx>=canvas.width||cy>=canvas.height) continue;
+        const d=ctx.getImageData(cx,cy,1,1).data;
+        R+=d[0];G+=d[1];B+=d[2]; n++;
+      }
+    }
+    const avgHex = n ? rgbToHex(Math.round(R/n),Math.round(G/n),Math.round(B/n)) : hex;
+    $('#avg-color').style.background = avgHex;
+    $('#avg-color').textContent = avgHex;
+
+    /* 放大镜背景位置 */
+    const rawX = Math.floor(px / scale), rawY = Math.floor(py / scale);
+    const zoom = 8;
+    magnifier.style.backgroundPosition = `-${rawX*zoom - magSize/2}px -${rawY*zoom - magSize/2}px`;
+  }catch(e){}
+}
+
+/* ====== 其余功能保持原样 ====== */
+$('#btn-extract').onclick = extractPalette;
+
+function extractPalette(){
+  if(!img.src) return;
+  const w = canvas.width, h = canvas.height;
+  const data = ctx.getImageData(0,0,w,h).data;
+  const colors = [];
+  for(let i=0;i<data.length;i+=4){
+    colors.push([data[i],data[i+1],data[i+2]]);
+  }
+  const palette = medianCut(colors,5);
+  $('#palette').innerHTML = palette.map(c=>{
+    const hex = rgbToHex(...c);
+    return `<div class="color-box" style="background:${hex}">${hex}</div>`;
+  }).join('');
+}
+
+function medianCut(colors, max){
+  const buckets = [colors];
+  let safety = 0;
+  while(buckets.length < max && safety < 100) {
+    buckets.sort((a,b)=>b.length-a.length);
+    const largest = buckets.shift();
+    if(!largest || largest.length <= 1){ buckets.push(largest); break; }
+    const rMin=Math.min(...largest.map(c=>c[0])), rMax=Math.max(...largest.map(c=>c[0]));
+    const gMin=Math.min(...largest.map(c=>c[1])), gMax=Math.max(...largest.map(c=>c[1]));
+    const bMin=Math.min(...largest.map(c=>c[2])), bMax=Math.max(...largest.map(c=>c[2]));
+    const range = Math.max(rMax-rMin,gMax-gMin,bMax-bMin);
+    let comp = 0; if(range===gMax-gMin) comp=1; else if(range===bMax-bMin) comp=2;
+    largest.sort((a,b)=>a[comp]-b[comp]);
+    const mid = Math.floor(largest.length/2);
+    if(mid === 0 || mid === largest.length) { buckets.push(largest); break; }
+    buckets.push(largest.slice(0,mid), largest.slice(mid));
+    safety++;
+  }
+  return buckets.filter(b=>b && b.length).map(b=>{
+    const R=Math.round(b.reduce((s,c)=>s+c[0],0)/b.length);
+    const G=Math.round(b.reduce((s,c)=>s+c[1],0)/b.length);
+    const B=Math.round(b.reduce((s,c)=>s+c[2],0)/b.length);
+    return [R,G,B];
+  });
+}
+
+/* WCAG */
+function updateContrast(){
+  const fg = hexToRgb($('#fg').value);
+  const bg = hexToRgb($('#bg').value);
+  const cr = getContrast(fg,bg);
+  $('#cr').textContent = cr;
+  let level = 'Fail';
+  if(cr>=7) level='AAA';
+  else if(cr>=4.5) level='AA';
+  $('#cr-level').textContent = level;
+}
+$('#fg').oninput = $('#bg').oninput = updateContrast;
+updateContrast();
+
+/* 历史记录 */
+const hist = JSON.parse(localStorage.getItem('colorHist')||'[]');
+function renderHist(){
+  $('#history').innerHTML = hist.map((h,i)=>{
+    return `<div class="hist-item">
+      <span class="hist-color" style="background:${h}"></span>
+      <span>${h}</span>
+      <button onclick="applyHist(${i})">恢复</button>
+    </div>`;
+  }).join('');
+}
+function addHistory(hex){
+  if(!hist.includes(hex)) hist.unshift(hex);
+  if(hist.length>10) hist.pop();
+  localStorage.setItem('colorHist',JSON.stringify(hist));
+  renderHist();
+}
+window.applyHist = i => {
+  const h = hist[i];
+  $('#fg').value = h;
+  updateContrast();
+};
+renderHist();
+
+// 顶部栏
+const topBar = document.getElementById('top-bar');
+let topBarTimer = null;
+document.body.addEventListener('mousemove', function(e) {
+    if (e.clientY < 48) {
+        topBar.style.opacity = '1';
+        topBar.style.pointerEvents = 'auto';
+        clearTimeout(topBarTimer);
+        topBarTimer = setTimeout(() => {
+            topBar.style.opacity = '0';
+            topBar.style.pointerEvents = 'none';
+        }, 1800);
+    }
+});
+
+// 推演颜料比例
+async function predictColor(rgbValue) {
+    try {
+        const res = await fetch('/predict', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({R: rgbValue[0], G: rgbValue[1], B: rgbValue[2]})
+        });
+        const data = await res.json();
+        let txt = '';
+        for (const [k,v] of Object.entries(data)) {
+            txt += `${k}: ${v.toFixed(1)}%<br>`;  // ✅ 正确：v已经是后端返回的百分比
+        }
+        return txt;
+    } catch (e) {
+        return '推演失败: ' + e.message;
+    }
+}
+
+// 当前像素推演
+document.getElementById('predict-cur-btn').onclick = async function() {
+    const hex = $('#hex').value;
+    if (!hex) {
+        alert('请先选中像素');
+        return;
+    }
+    const rgb = hexToRgb(hex);
+    document.getElementById('predict-cur-result').innerHTML = await predictColor(rgb);
+};
+
+// 区域平均色推演
+document.getElementById('predict-avg-btn').onclick = async function() {
+    const hex = $('#avg-color').textContent;
+    if (!hex || !/^#?[0-9a-fA-F]{6}$/.test(hex.trim())) {
+        alert('区域平均色无效');
+        return;
+    }
+    const rgb = hexToRgb(hex);
+    document.getElementById('predict-avg-result').innerHTML = await predictColor(rgb);
+};
+
+// 折叠功能
+function toggleFold(id) {
+  const fold = document.getElementById(id);
+  const arrow = document.getElementById(id.replace('-fold','-arrow'));
+  if (fold.classList.contains('fold-collapsed')) {
+    fold.classList.remove('fold-collapsed');
+    arrow.textContent = '▼';
+  } else {
+    fold.classList.add('fold-collapsed');
+    arrow.textContent = '▶';
+  }
+}
+
+// 初始化折叠状态
+document.getElementById('palette-fold').classList.add('fold-collapsed');
+document.getElementById('palette-arrow').textContent = '▶';
+document.getElementById('wcag-fold').classList.add('fold-collapsed');
+document.getElementById('wcag-arrow').textContent = '▶';
+
+</script>
+</body>
+</html>

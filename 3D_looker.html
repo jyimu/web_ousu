@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D 模型取色器</title>
+    <link rel="icon" type="image/png" href="image/image.png">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;overflow:hidden;background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);color:#e0f7fa}
+        #canvas-container{width:100vw;height:100vh;position:relative}
+        #controls{position:fixed;top:20px;left:20px;width:320px;max-width:40vw;max-height:calc(100vh - 40px);overflow-y:auto;padding-right:10px;background:rgba(25,40,50,.75);backdrop-filter:blur(10px);padding:20px;border-radius:15px;box-shadow:0 8px 32px rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.06);z-index:100}
+        #controls h3{margin-bottom:15px;color:#4fc3f7;font-weight:600;border-bottom:1px solid rgba(79,195,247,.12);padding-bottom:10px}
+        .control-group{margin-bottom:15px}
+        .control-group label{display:block;margin-bottom:8px;color:#bbdefb;font-size:14px;font-weight:500}
+        .control-group input[type=range]{width:100%;height:6px;border-radius:3px;background:rgba(179,229,252,.08);outline:none;-webkit-appearance:none}
+        .control-group input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#29b6f6;cursor:pointer;box-shadow:0 0 8px rgba(41,182,246,.6)}
+        .control-group input[type=color]{width:100%;height:36px;border:1px solid rgba(255,255,255,.08);border-radius:8px;cursor:pointer;background:rgba(25,40,50,.5)}
+        .control-group select{width:100%;padding:8px 12px;border:1px solid rgba(255,255,255,.08);border-radius:8px;background:rgba(25,40,50,.5);color:#e0f7fa;font-size:14px}
+        button{background:linear-gradient(45deg,#2196f3,#21cbf3);color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-size:14px;margin-right:8px;margin-bottom:8px;transition:all .3s ease;font-weight:500;box-shadow:0 4px 15px rgba(33,150,243,.3)}
+        button:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(33,150,243,.4)}
+        button:active{transform:translateY(0)}
+        .file-label{display:inline-block;background:linear-gradient(45deg,#2196f3,#21cbf3);color:#fff;padding:10px 16px;border-radius:8px;cursor:pointer;font-size:14px;margin-bottom:10px;box-shadow:0 4px 15px rgba(33,150,243,.3)}
+        .file-label:hover{transform:translateY(-2px)}
+        #file-input{display:none}
+        #info{position:absolute;bottom:20px;left:20px;background:rgba(25,40,50,.85);backdrop-filter:blur(8px);padding:12px 18px;border-radius:12px;font-size:14px;color:#bbdefb;box-shadow:0 8px 32px rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.06);z-index:100;transition:opacity .6s ease,transform .4s ease;opacity:1}
+        #loading{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:none;z-index:1000}
+        .loader{border:4px solid rgba(179,229,252,.08);border-top:4px solid #29b6f6;border-radius:50%;width:50px;height:50px;animation:spin 1s linear infinite;margin:0 auto 20px;box-shadow:0 0 20px rgba(41,182,246,.5)}
+        @keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+        #error-message{position:absolute;top:20px;right:20px;background:rgba(244,67,54,.9);color:#fff;padding:15px 20px;border-radius:10px;display:none;z-index:1001;animation:slideIn .3s ease;box-shadow:0 8px 24px rgba(244,67,54,.4);backdrop-filter:blur(5px);border:1px solid rgba(255,255,255,.08)}
+        @keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
+        .close-error{margin-left:15px;cursor:pointer;font-weight:bold;float:right;font-size:18px;line-height:1}
+        .close-error:hover{color:#ffebee}
+        .stats{position:absolute;top:20px;right:20px;background:rgba(25,40,50,.7);backdrop-filter:blur(10px);padding:15px;border-radius:10px;font-size:12px;color:#bbdefb;min-width:200px;z-index:100;border:1px solid rgba(255,255,255,.06)}
+        .stats div{margin-bottom:5px}.stats span{color:#4fc3f7;font-weight:500}
+        /* 顶部跳转按钮 */
+        #top-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(25, 40, 50, 0.85);
+            backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 200;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        #top-bar a {
+            color: #beeaff;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: background 0.3s ease;
+        }
+        #top-bar a:hover {
+            background: rgba(79, 195, 247, 0.1);
+        }
+
+        #top-bar {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 48px;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            background: rgba(25,40,50,0.85);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            transition: opacity 0.4s;
+            opacity: 0;
+            pointer-events: none;
+        }
+        #goto-photo-btn {
+            margin-right: 32px;
+            color: #4fc3f7;
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 600;
+            padding: 10px 22px;
+            border-radius: 24px;
+            background: linear-gradient(90deg,#2196f3,#21cbf3);
+            box-shadow: 0 4px 16px rgba(33,150,243,0.18);
+            transition: background 0.3s;
+            pointer-events: auto;
+        }
+        #goto-photo-btn:hover {
+            background: linear-gradient(90deg,#21cbf3,#2196f3);
+        }
+
+        .block {
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        .fold-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background: rgba(25, 40, 50, 0.8);
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .fold-header:hover {
+            background: rgba(79, 195, 247, 0.1);
+        }
+        .fold-arrow {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            margin-left: 8px;
+            transition: transform 0.3s;
+        }
+        .fold-arrow.folded {
+            transform: rotate(-90deg);
+        }
+        .fold-header {
+          cursor: pointer;
+          user-select: none;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        .fold-arrow {
+          font-size: 18px;
+          margin-left: 8px;
+          transition: transform 0.2s;
+        }
+        .fold-collapsed {
+          display: none;
+        }
+        .fold-header.collapsed .fold-arrow {
+          transform: rotate(-90deg);
+        }
+    </style>
+</head>
+<body>
+<div id="top-bar">
+    <a href="index.html" id="goto-photo-btn">首页</a>
+    <a href="photo_looker.html" id="goto-photo-btn">图片取色器</a>
+    <a href="hunyuan3d.html"id="goto-photo-btn">AI创作</a>
+</div>
+
+<div id="canvas-container"></div>
+
+<!-- ================= 控制面板 ================= -->
+<div id="controls">
+    <h3>3D 模型取色器</h3>
+
+    <div class="control-group">
+        <label for="file-input" class="file-label">选择3D模型文件</label>
+        <input type="file" id="file-input" accept=".obj,.gltf,.glb,.fbx,.dae,.ply,.stl,.3ds">
+        <div style="font-size:12px;color:#888;margin-top:5px">支持格式: OBJ, GLTF, GLB, FBX, DAE, PLY, STL, 3DS</div>
+    </div>
+
+    <div class="control-group">
+        <label>预设模型:</label>
+        <select id="preset-models">
+            <option value="">选择预设模型</option>
+            <option value="cube">立方体</option>
+            <option value="sphere">球体</option>
+            <option value="torus">圆环</option>
+            <option value="cone">圆锥</option>
+            <option value="cylinder">圆柱</option>
+            <option value="dodecahedron">十二面体</option>
+            <option value="icosahedron">二十面体</option>
+        </select>
+    </div>
+
+    <div class="control-group">
+        <label>背景颜色:</label>
+        <input type="color" id="bg-color" value="#1a1a1a">
+    </div>
+
+    <div class="control-group">
+        <label>模型颜色:</label>
+        <div style="display:flex;gap:8px;align-items:center">
+            <input type="color" id="model-color" value="#ffffff">
+            <div id="selected-color-box" style="width:36px;height:36px;border-radius:6px;border:1px solid rgba(255,255,255,.08);background:#fff"></div>
+        </div>
+    </div>
+
+    <!-- ★ 实时取色 ★ -->
+    <div class="control-group">
+        <label>实时悬停颜色:</label>
+        <div style="display:flex;gap:8px;align-items:center">
+            <input type="color" id="hover-color" value="#ffffff" disabled>
+            <div id="hover-color-box" style="width:36px;height:36px;border-radius:6px;border:1px solid rgba(255,255,255,.08);background:#fff"></div>
+            <span id="color-locked-badge" style="font-size:12px;color:#ff9800;display:none">🔒 已锁定</span>
+        </div>
+        <!-- 推演按钮和结果 -->
+        <div style="background-color: #044f604a;border-radius: 8px;padding: 10px;margin-top: 10px;">
+            <button id="predict-color-btn" style="margin-top:10px;">推演颜料比例</button>
+            <div id="predict-result" style="margin-top:8px;font-size:14px;color:#ffd700"></div>
+            <p style="color: rgb(255, 0, 0);">数据为参考值，实际调配请以实验为准!!!</p>
+        </div>
+    </div>
+
+    <div class="block">
+      <div class="fold-header" onclick="toggleFold('params-fold')">
+        <h3 style="display:inline">模型参数</h3>
+        <span class="fold-arrow" id="params-fold-arrow">▼</span>
+      </div>
+      <div id="params-fold">
+        <!-- 光照强度、环境光强度、金属度、粗糙度、透明度控件 -->
+        <div class="control-group">
+          <label>光照强度: <span id="light-value">1.0</span></label>
+          <input type="range" id="light-intensity" min="0" max="3" step="0.1" value="1">
+        </div>
+        <div class="control-group">
+          <label>环境光强度: <span id="ambient-value">0.3</span></label>
+          <input type="range" id="ambient-intensity" min="0" max="1" step="0.1" value="0.3">
+        </div>
+        <div class="control-group">
+          <label>金属度: <span id="metalness-value">0.0</span></label>
+          <input type="range" id="metalness" min="0" max="1" step="0.1" value="0">
+        </div>
+        <div class="control-group">
+          <label>粗糙度: <span id="roughness-value">0.5</span></label>
+          <input type="range" id="roughness" min="0" max="1" step="0.1" value="0.5">
+        </div>
+        <div class="control-group">
+          <label>透明度: <span id="opacity-value">1.0</span></label>
+          <input type="range" id="opacity" min="0.1" max="1" step="0.1" value="1">
+        </div>
+      </div>
+    </div>
+
+    <div class="control-group">
+        <button id="toggle-wireframe">切换线框模式</button>
+        <button id="toggle-rotation">切换自动旋转</button>
+        <button id="reset-camera">重置视角</button>
+        <button id="toggle-grid">切换网格</button>
+        <button id="toggle-axes">切换坐标轴</button>
+        <button id="toggle-shadows">切换阴影</button>
+    </div>
+
+    <div class="control-group">
+        <button id="export-screenshot">导出截图</button>
+        <button id="reset-material">重置材质</button>
+    </div>
+</div>
+
+<!-- ================= 信息 / 状态 ================= -->
+<div class="stats" id="stats">
+    <div>顶点数: <span id="vertex-count">0</span></div>
+    <div>面数: <span id="face-count">0</span></div>
+    <div>材质数: <span id="material-count">0</span></div>
+    <div>FPS: <span id="fps">60</span></div>
+</div>
+
+<div id="info">鼠标左键: 旋转 | 鼠标右键: 平移 | 滚轮: 缩放 | 双击: 锁定/解锁颜色</div>
+
+<div id="loading">
+    <div class="loader"></div>
+    <div>加载中...</div>
+</div>
+
+<div id="error-message">
+    <span class="close-error" onclick="this.parentElement.style.display='none'">&times;</span>
+    <div id="error-text"></div>
+</div>
+
+<!-- ================= Three.js 依赖 ================= -->
+<script src="scaler/js/three.js/three.min.js"></script>
+<script src="scaler/js/three.js/OrbitControls.js"></script>
+<script src="scaler/js/three.js/OBJLoader.js"></script>
+<script src="scaler/js/three.js/GLTFLoader.js"></script>
+<script src="scaler/js/three.js/FBXLoader.js"></script>
+<script src="scaler/js/three.js/ColladaLoader.js"></script>
+<script src="scaler/js/three.js/PLYLoader.js"></script>
+<script src="scaler/js/three.js/STLLoader.js"></script>
+<script src="scaler/js/three.js/TDSLoader.js"></script>
+
+<script>
+/* ================= 全局变量 ================= */
+let scene, camera, renderer, controls;
+let currentModel = null;
+let wireframeMode = false, autoRotate = false, showShadows = false;
+let gridHelper, axesHelper, directionalLight, ambientLight;
+let stats = { vertices: 0, faces: 0, materials: 0 };
+let lastTime = performance.now(), frames = 0;
+
+/* ================= 初始化场景 ================= */
+function init() {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0f2027);
+
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(5, 5, 5);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = showShadows;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1;
+    document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.minDistance = 1;
+    controls.maxDistance = 100;
+
+    setupLights();
+    addGridHelper();
+    addAxesHelper();
+    createDefaultModel();
+    setupEventListeners();
+    animate();
+}
+
+/* ================= 灯光 ================= */
+function setupLights() {
+    ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+    scene.add(ambientLight);
+
+    directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(10, 10, 5);
+    directionalLight.castShadow = showShadows;
+    directionalLight.shadow.mapSize.set(2048, 2048);
+    scene.add(directionalLight);
+
+    const pointLight = new THREE.PointLight(0xffffff, 0.5, 100);
+    pointLight.position.set(-10, 10, -10);
+    scene.add(pointLight);
+
+    const hemisphereLight = new THREE.HemisphereLight(0x87ceeb, 0x1e3a5f, 0.2);
+    scene.add(hemisphereLight);
+}
+
+function addGridHelper() {
+    gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x444444);
+    gridHelper.position.y = -0.01;
+    scene.add(gridHelper);
+}
+
+function addAxesHelper() {
+    axesHelper = new THREE.AxesHelper(5);
+    scene.add(axesHelper);
+}
+
+/* ================= 默认模型 ================= */
+function createDefaultModel() {
+    const geometry = new THREE.BoxGeometry(2, 2, 2);
+    const material = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0, roughness: 0.5 });
+    currentModel = new THREE.Mesh(geometry, material);
+    currentModel.castShadow = showShadows;
+    currentModel.receiveShadow = showShadows;
+    scene.add(currentModel);
+    updateStats();
+}
+
+/* ================= 统计 ================= */
+function updateStats() {
+    if (currentModel && currentModel.geometry) {
+        const g = currentModel.geometry;
+        stats.vertices = g.attributes.position ? g.attributes.position.count : 0;
+        stats.faces = g.index ? g.index.count / 3 : stats.vertices / 3;
+        stats.materials = currentModel.material ? (Array.isArray(currentModel.material) ? currentModel.material.length : 1) : 0;
+    } else {
+        stats.vertices = stats.faces = stats.materials = 0;
+    }
+    document.getElementById('vertex-count').textContent = stats.vertices;
+    document.getElementById('face-count').textContent = stats.faces;
+    document.getElementById('material-count').textContent = stats.materials;
+}
+
+function updateFPS() {
+    frames++;
+    const now = performance.now();
+    if (now >= lastTime + 1000) {
+        document.getElementById('fps').textContent = Math.round(frames * 1000 / (now - lastTime));
+        frames = 0;
+        lastTime = now;
+    }
+}
+
+/* ================= 实时取色 & 锁定 ================= */
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const hoverColorInput = document.getElementById('hover-color');
+const hoverColorBox = document.getElementById('hover-color-box');
+const lockedBadge = document.getElementById('color-locked-badge');
+let colorLocked = false;
+
+function setHoverColor(hex) {
+    if (colorLocked) return;
+    hoverColorInput.value = hex;
+    hoverColorBox.style.background = hex;
+}
+
+function sampleColor(intersect) {
+    const obj = intersect.object;
+    const uv = intersect.uv;
+    if (!obj.isMesh || !obj.material) return '#ffffff';
+    const mat = obj.material;
+    if (mat.map && mat.map.image && uv) {
+        const img = mat.map.image;
+        const canv = document.createElement('canvas');
+        canv.width = img.naturalWidth || img.videoWidth || img.width;
+        canv.height = img.naturalHeight || img.videoHeight || img.height;
+        if (canv.width && canv.height) {
+            const ctx = canv.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            const x = Math.floor(uv.x * canv.width);
+            const y = Math.floor((1 - uv.y) * canv.height);
+            const dat = ctx.getImageData(x, y, 1, 1).data;
+            return `#${((1 << 24) + (dat[0] << 16) + (dat[1] << 8) + dat[2]).toString(16).slice(1)}`;
+        }
+    }
+    return mat.color ? `#${mat.color.getHexString()}` : '#ffffff';
+}
+
+/* ================= 事件监听 ================= */
+function setupEventListeners() {
+    document.getElementById('file-input').addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (file) loadModel(file);
+    });
+    document.getElementById('preset-models').addEventListener('change', e => {
+        if (e.target.value) { createPresetModel(e.target.value); e.target.value = ''; }
+    });
+    document.getElementById('bg-color').addEventListener('input', e => {
+        scene.background = new THREE.Color(e.target.value);
+    });
+    document.getElementById('model-color').addEventListener('input', e => {
+        updateModelMaterial({ color: new THREE.Color(e.target.value) });
+        document.getElementById('selected-color-box').style.background = e.target.value;
+    });
+    document.getElementById('light-intensity').addEventListener('input', e => {
+        directionalLight.intensity = parseFloat(e.target.value);
+        document.getElementById('light-value').textContent = e.target.value;
+    });
+    document.getElementById('ambient-intensity').addEventListener('input', e => {
+        ambientLight.intensity = parseFloat(e.target.value);
+        document.getElementById('ambient-value').textContent = e.target.value;
+    });
+    document.getElementById('metalness').addEventListener('input', e => {
+        updateModelMaterial({ metalness: parseFloat(e.target.value) });
+        document.getElementById('metalness-value').textContent = e.target.value;
+    });
+    document.getElementById('roughness').addEventListener('input', e => {
+        updateModelMaterial({ roughness: parseFloat(e.target.value) });
+        document.getElementById('roughness-value').textContent = e.target.value;
+    });
+    document.getElementById('opacity').addEventListener('input', e => {
+        const v = parseFloat(e.target.value);
+        updateModelMaterial({ transparent: v < 1, opacity: v });
+        document.getElementById('opacity-value').textContent = e.target.value;
+    });
+    document.getElementById('toggle-wireframe').addEventListener('click', () => {
+        wireframeMode = !wireframeMode;
+        updateModelMaterial({ wireframe: wireframeMode });
+    });
+    document.getElementById('toggle-rotation').addEventListener('click', () => {
+        autoRotate = !autoRotate;
+        controls.autoRotate = autoRotate;
+    });
+    document.getElementById('reset-camera').addEventListener('click', () => {
+        camera.position.set(5, 5, 5);
+        camera.lookAt(0, 0, 0);
+        controls.target.set(0, 0, 0);
+        controls.update();
+    });
+    document.getElementById('toggle-grid').addEventListener('click', () => {
+        if (gridHelper) gridHelper.visible = !gridHelper.visible;
+    });
+    document.getElementById('toggle-axes').addEventListener('click', () => {
+        if (axesHelper) axesHelper.visible = !axesHelper.visible;
+    });
+    document.getElementById('toggle-shadows').addEventListener('click', () => {
+        showShadows = !showShadows;
+        renderer.shadowMap.enabled = showShadows;
+        directionalLight.castShadow = showShadows;
+        if (currentModel) currentModel.traverse(child => {
+            if (child.isMesh) { child.castShadow = showShadows; child.receiveShadow = showShadows; }
+        });
+    });
+    document.getElementById('export-screenshot').addEventListener('click', () => {
+        renderer.render(scene, camera);
+        const link = document.createElement('a');
+        link.download = '3D模型截图_' + Date.now() + '.png';
+        link.href = renderer.domElement.toDataURL('image/png');
+        link.click();
+    });
+    document.getElementById('reset-material').addEventListener('click', () => {
+        updateModelMaterial({ color: new THREE.Color(0xffffff), metalness: 0, roughness: 0.5, opacity: 1, transparent: false, wireframe: false });
+        document.getElementById('model-color').value = '#ffffff';
+        document.getElementById('selected-color-box').style.background = '#ffffff';
+        document.getElementById('metalness').value = 0;
+        document.getElementById('roughness').value = 0.5;
+        document.getElementById('opacity').value = 1;
+        document.getElementById('metalness-value').textContent = '0.0';
+        document.getElementById('roughness-value').textContent = '0.5';
+        document.getElementById('opacity-value').textContent = '1.0';
+    });
+    document.getElementById('predict-color-btn').onclick = async function() {
+        // 获取锁定颜色（优先锁定，否则用当前悬停）
+        let hex = colorLocked ? hoverColorInput.value : hoverColorInput.value;
+        if (!hex) {
+            showError('请先锁定颜色');
+            return;
+        }
+        // 转换为 RGB
+        hex = hex.replace('#','');
+        const r = parseInt(hex.substring(0,2),16);
+        const g = parseInt(hex.substring(2,4),16);
+        const b = parseInt(hex.substring(4,6),16);
+
+        // 调用推演接口（假设后端已部署 /predict，返回如 index.html 示例）
+        try {
+            const res = await fetch('/predict', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({R: r, G: g, B: b})
+            });
+            const data = await res.json();
+            // 格式化结果
+            let txt = '';
+            for (const [k,v] of Object.entries(data)) {
+                txt += `${k}: ${(v).toFixed(1)}%<br>`;
+            }
+            document.getElementById('predict-result').innerHTML = txt;
+        } catch (e) {
+            showError('推演失败: ' + e.message);
+        }
+    };
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    /* 鼠标移动实时取色 */
+    renderer.domElement.addEventListener('mousemove', e => {
+        if (!currentModel || colorLocked) return;
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+        const hits = raycaster.intersectObject(currentModel, true);
+        if (hits.length) setHoverColor(sampleColor(hits[0]));
+    });
+
+    /* 双击锁定/解锁 */
+    renderer.domElement.addEventListener('dblclick', e => {
+        if (!currentModel) return;
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+        const hits = raycaster.intersectObject(currentModel, true);
+        if (hits.length) {
+            if (!colorLocked) {
+                setHoverColor(sampleColor(hits[0]));
+                colorLocked = true;
+                lockedBadge.style.display = 'inline';
+            } else {
+                colorLocked = false;
+                lockedBadge.style.display = 'none';
+            }
+        }
+    });
+}
+
+/* ================= 材质统一更新（防空） ================= */
+function updateModelMaterial(props) {
+    if (!currentModel) return;
+    currentModel.traverse(child => {
+        if (child.isMesh && child.material) {
+            const mats = Array.isArray(child.material) ? child.material : [child.material];
+            mats.forEach(mat => { if (mat) Object.assign(mat, props); });
+        }
+    });
+}
+
+/* ================= 模型加载 ================= */
+function loadModel(file) {
+    showLoading(true);
+    const reader = new FileReader();
+    const fileName = file.name.toLowerCase();
+    reader.onload = e => {
+        try {
+            let loader;
+            if (fileName.endsWith('.obj')) {
+                loader = new THREE.OBJLoader();
+                processLoadedObject(loader.parse(e.target.result));
+            } else if (fileName.endsWith('.gltf') || fileName.endsWith('.glb')) {
+                loader = new THREE.GLTFLoader();
+                loader.parse(e.target.result, '', gltf => processLoadedObject(gltf.scene));
+            } else if (fileName.endsWith('.fbx')) {
+                loader = new THREE.FBXLoader();
+                processLoadedObject(loader.parse(e.target.result, ''));
+            } else if (fileName.endsWith('.dae')) {
+                loader = new THREE.ColladaLoader();
+                processLoadedObject(loader.parse(e.target.result).scene);
+            } else if (fileName.endsWith('.ply')) {
+                loader = new THREE.PLYLoader();
+                const geom = loader.parse(e.target.result);
+                processLoadedObject(new THREE.Mesh(geom, new THREE.MeshStandardMaterial({ vertexColors: true })));
+            } else if (fileName.endsWith('.stl')) {
+                loader = new THREE.STLLoader();
+                const geom = loader.parse(e.target.result);
+                processLoadedObject(new THREE.Mesh(geom, new THREE.MeshStandardMaterial({ color: 0x4fc3f7 })));
+            } else if (fileName.endsWith('.3ds')) {
+                loader = new THREE.TDSLoader();
+                processLoadedObject(loader.parse(e.target.result));
+            } else throw new Error('不支持的文件格式');
+        } catch (err) {
+            showError('模型加载失败: ' + err.message);
+            showLoading(false);
+        }
+    };
+    fileName.endsWith('.glb') ? reader.readAsArrayBuffer(file) : reader.readAsText(file);
+}
+
+
+function processLoadedObject(object) {
+    if (currentModel) scene.remove(currentModel);
+    currentModel = object;
+    centerModel(object);
+    object.traverse(child => {
+        if (child.isMesh) {
+            if (!child.material) child.material = new THREE.MeshStandardMaterial({ color: 0xffffff });
+            child.castShadow = showShadows;
+            child.receiveShadow = showShadows;
+        }
+    });
+    scene.add(object);
+    showLoading(false);
+    updateStats();
+    showError('模型加载成功！');
+    setTimeout(() => document.getElementById('error-message').style.display = 'none', 2000);
+}
+
+function centerModel(object) {
+    const box = new THREE.Box3().setFromObject(object);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    object.position.sub(center);
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const fov = camera.fov * Math.PI / 180;
+    let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.5;
+    camera.position.set(cameraZ, cameraZ, cameraZ);
+    camera.lookAt(0, 0, 0);
+    controls.target.set(0, 0, 0);
+    controls.update();
+}
+
+/* ================= 预设模型 ================= */
+function createPresetModel(type) {
+    let geometry;
+    switch (type) {
+        case 'cube': geometry = new THREE.BoxGeometry(2, 2, 2); break;
+        case 'sphere': geometry = new THREE.SphereGeometry(1.5, 32, 32); break;
+        case 'torus': geometry = new THREE.TorusGeometry(1.5, 0.5, 16, 100); break;
+        case 'cone': geometry = new THREE.ConeGeometry(1.5, 3, 32); break;
+        case 'cylinder': geometry = new THREE.CylinderGeometry(1.5, 1.5, 3, 32); break;
+        case 'dodecahedron': geometry = new THREE.DodecahedronGeometry(1.5); break;
+        case 'icosahedron': geometry = new THREE.IcosahedronGeometry(1.5); break;
+        default: return;
+    }
+    const material = new THREE.MeshStandardMaterial({
+        color: 0x4fc3f7,
+        metalness: parseFloat(document.getElementById('metalness').value),
+        roughness: parseFloat(document.getElementById('roughness').value),
+        transparent: parseFloat(document.getElementById('opacity').value) < 1,
+        opacity: parseFloat(document.getElementById('opacity').value)
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.castShadow = showShadows;
+    mesh.receiveShadow = showShadows;
+    if (currentModel) scene.remove(currentModel);
+    currentModel = mesh;
+    scene.add(mesh);
+    updateStats();
+}
+
+/* ================= UI 辅助 ================= */
+function showLoading(show) {
+    document.getElementById('loading').style.display = show ? 'block' : 'none';
+}
+
+function showError(msg) {
+    const box = document.getElementById('error-message');
+    const txt = document.getElementById('error-text');
+    txt.textContent = msg;
+    box.style.display = 'block';
+    if (!msg.includes('成功')) setTimeout(() => box.style.display = 'none', 5000);
+}
+
+/* ================= 动画循环 ================= */
+function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    updateFPS();
+    renderer.render(scene, camera);
+}
+
+/* ================= 启动 ================= */
+init();
+
+// 顶部栏显示/隐藏逻辑
+const topBar = document.getElementById('top-bar');
+let topBarTimer = null;
+document.body.addEventListener('mousemove', function(e) {
+    if (e.clientY < 48) {
+        topBar.style.opacity = '1';
+        topBar.style.pointerEvents = 'auto';
+        clearTimeout(topBarTimer);
+        topBarTimer = setTimeout(() => {
+            topBar.style.opacity = '0';
+            topBar.style.pointerEvents = 'none';
+        }, 1800);
+    }
+});
+
+/*折叠面板脚本*/
+function toggleFold(id) {
+  const foldContent = document.getElementById(id);
+  const arrow = document.getElementById(id + '-arrow');
+  if (!foldContent || !arrow) return;
+  if (foldContent.classList.contains('fold-collapsed')) {
+    foldContent.classList.remove('fold-collapsed');
+    arrow.textContent = '▼';
+  } else {
+    foldContent.classList.add('fold-collapsed');
+    arrow.textContent = '▶';
+  }
+}
+
+// 初始化折叠（只对存在的区块）
+['params-fold', 'palette-fold', 'wcag-fold'].forEach(id => {
+  const fold = document.getElementById(id);
+  const arrow = document.getElementById(id + '-arrow');
+  if (fold && arrow) {
+    fold.classList.add('fold-collapsed');
+    arrow.textContent = '▶';
+  }
+});
+</script>
+</body>
+</html>

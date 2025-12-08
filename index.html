@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能色彩系统 - 国风版</title>
+    <link rel="icon" type="image/png" href="image/image.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            /* 允许滚动 */
+            height: auto;
+            min-height: 100vh;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', '微软雅黑', 'STKaiti', '华文楷体', serif;
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            color: #e0f7fa;
+            /* 去掉固定居中，让内容决定高度 */
+            display: block;
+            padding: 60px 20px 40px;
+            position: relative;
+        }
+
+        /* 移除背景装饰字，仅保留渐变与淡淡纹理 */
+        body::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.08) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            text-align: center;
+            z-index: 1;
+            position: relative;
+        }
+
+        h1 {
+            font-size: clamp(32px, 5vw, 48px);
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #4fc3f7, #29b6f6, #03a9f4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 4px;
+        }
+
+        .subtitle {
+            font-size: clamp(14px, 2.5vw, 18px);
+            margin-bottom: 50px;
+            color: #bbdefb;
+            letter-spacing: 2px;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 15px;
+            padding: 30px 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .feature-card:hover::before {
+            left: 100%;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            border-color: rgba(79, 195, 247, 0.5);
+        }
+
+        .feature-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .feature-title {
+            font-size: 24px;
+            margin-bottom: 15px;
+            color: #4fc3f7;
+        }
+
+        .feature-description {
+            font-size: 14px;
+            color: #bbdefb;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+
+        .btn {
+            display: inline-block;
+            background: linear-gradient(45deg, #2196f3, #21cbf3);
+            color: #042b3a;
+            padding: 12px 30px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 80px;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+
+        /* 动画 */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .container {
+            animation: fadeInUp 1s ease-out;
+        }
+
+        .feature-card {
+            animation: fadeInUp 1s ease-out;
+            animation-fill-mode: both;
+        }
+
+        .feature-card:nth-child(1) { animation-delay: 0.2s; }
+        .feature-card:nth-child(2) { animation-delay: 0.4s; }
+        .feature-card:nth-child(3) { animation-delay: 0.6s; }
+    </style>
+</head>
+<body>
+    <script type="text/javascript" src="scaler/js/canvas-nest.min.js"></script>
+    <div class="container">
+        <h1>智能色彩系统</h1>
+        <p class="subtitle">传统国风色彩与现代科技的完美融合</p>
+
+        <div class="feature-grid">
+            <div class="feature-card">
+                <span class="feature-icon">🎨</span>
+                <h3 class="feature-title">图片取色分析</h3>
+                <p class="feature-description">
+                    上传图片，智能提取传统国风色彩<br>
+                    支持像素级取色、主色调分析、颜料成分预测
+                </p>
+                <a href="photo_looker.html" class="btn">进入取色器</a>
+            </div>
+
+            <div class="feature-card">
+                <span class="feature-icon">🎯</span>
+                <h3 class="feature-title">3D模型查看</h3>
+                <p class="feature-description">
+                    在线查看3D模型，实时调整材质参数<br>
+                    支持多种格式，可实时取色分析
+                </p>
+                <a href="3D_looker.html" class="btn">进入3D查看器</a>
+            </div>
+
+            <div class="feature-card">
+                <span class="feature-icon">✨</span>
+                <h3 class="feature-title">AI智能生成</h3>
+                <p class="feature-description">
+                    输入文字描述，AI生成3D模型<br>
+                    结合传统元素，创造独特国风作品
+                </p>
+                <!-- <a href="#" class="btn" onclick="alert('请在3D查看器中使用AI生成功能'); return false;">AI创作</a> -->
+                 <a href="hunyuan3d.html" class="btn">AI创作</a>
+            </div>
+        </div>
+
+        <div class="footer">
+            传承千年色彩文化 · 创新数字艺术体验
+        </div>
+    </div>
+</body>
+</html>
