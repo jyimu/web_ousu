@@ -42,7 +42,7 @@
 ### 安装步骤
 ```bash
 # 克隆项目
-git clone <repository-url>
+git clone https://github.com/jyimu/web_ousu.git
 cd intelligent-color-system
 
 # 安装Python依赖
