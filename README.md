@@ -43,7 +43,7 @@
 ```bash
 # 克隆项目
 git clone https://github.com/jyimu/web_ousu.git
-cd intelligent-color-system
+cd web_ousu
 
 # 安装Python依赖
 pip install -r requirements.txt
